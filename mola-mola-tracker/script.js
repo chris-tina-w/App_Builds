@@ -400,3 +400,65 @@ endInput.max = todayStr();
 
 updateOffsetLabel();
 render();
+
+// --- PWA: install banner + service worker -------------------------------
+
+const INSTALL_DISMISS_KEY = 'molaInstallDismissed';
+const installBanner = document.getElementById('install-banner');
+const installBannerText = document.getElementById('install-banner-text');
+const installBannerAction = document.getElementById('install-banner-action');
+const installBannerDismiss = document.getElementById('install-banner-dismiss');
+
+let deferredInstallPrompt = null;
+
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function isIos() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+function showInstallBanner(text, { withAction } = {}) {
+  if (localStorage.getItem(INSTALL_DISMISS_KEY) === 'true') return;
+  if (isStandalone()) return;
+  installBannerText.textContent = text;
+  installBannerAction.classList.toggle('hidden', !withAction);
+  installBanner.classList.remove('hidden');
+}
+
+function dismissInstallBanner() {
+  installBanner.classList.add('hidden');
+  localStorage.setItem(INSTALL_DISMISS_KEY, 'true');
+}
+
+installBannerDismiss.addEventListener('click', dismissInstallBanner);
+
+installBannerAction.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  installBanner.classList.add('hidden');
+});
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  showInstallBanner('Install Mola Mola Tracker on your phone for quick access. 🐟', { withAction: true });
+});
+
+window.addEventListener('appinstalled', () => {
+  installBanner.classList.add('hidden');
+  localStorage.setItem(INSTALL_DISMISS_KEY, 'true');
+});
+
+if (isIos() && !isStandalone()) {
+  showInstallBanner('Tip: tap Share, then "Add to Home Screen" to install this app. 🐟');
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}

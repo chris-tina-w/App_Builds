@@ -2,8 +2,22 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Mola Mola Tracker</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#14618c">
+<meta name="description" content="A playful, ocean-themed period tracker with a mola mola mascot.">
+
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mola Mola">
+<meta name="mobile-web-app-capable" content="yes">
+
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -29,6 +43,14 @@
     <h1>Mola Mola Tracker</h1>
     <p id="mood-bubble" class="mood-bubble">Hi! I'm keeping an eye on your cycle. 🌊</p>
   </header>
+
+  <div id="install-banner" class="install-banner hidden">
+    <span id="install-banner-text" class="install-banner-text"></span>
+    <div class="install-banner-actions">
+      <button type="button" id="install-banner-action" class="btn-primary install-banner-btn hidden">Install</button>
+      <button type="button" id="install-banner-dismiss" class="dialog-close" aria-label="Dismiss">✕</button>
+    </div>
+  </div>
 
   <main class="content">
 
@@ -123,26 +145,28 @@
       <ul id="history-list" class="history-list">
         <li class="empty-state">No entries yet — log your first period above.</li>
       </ul>
-      <div class="dev-tools">
-        <button id="seed-data-btn" class="btn-ghost" type="button">Load 10 sample cycles (testing)</button>
-        <button id="clear-data-btn" class="btn-ghost" type="button">Clear all data</button>
-      </div>
     </section>
+
+    <details class="card dev-panel" id="dev-panel">
+      <summary class="dev-panel-summary">Developer tools</summary>
+      <div class="dev-panel-body">
+        <div class="field-row">
+          <label for="date-offset-slider">Preview date <span id="date-offset-value">Today</span></label>
+          <input type="range" id="date-offset-slider" min="-15" max="15" value="0" step="1">
+          <button type="button" id="date-offset-reset" class="btn-ghost">Reset to today</button>
+        </div>
+        <div class="dev-tools">
+          <button id="seed-data-btn" class="btn-ghost" type="button">Load 10 sample cycles</button>
+          <button id="clear-data-btn" class="btn-ghost" type="button">Clear all data</button>
+        </div>
+      </div>
+    </details>
 
   </main>
 
   <footer class="app-footer">
     <p>Your data stays on this device only (browser local storage). Not medical advice.</p>
   </footer>
-</div>
-
-<div class="preview-bar" id="preview-bar">
-  <div class="preview-bar-inner">
-    <span class="preview-bar-label">Preview date</span>
-    <input type="range" id="date-offset-slider" min="-15" max="15" value="0" step="1">
-    <span class="preview-bar-value" id="date-offset-value">Today</span>
-    <button type="button" id="date-offset-reset" class="btn-ghost preview-reset">Reset</button>
-  </div>
 </div>
 
 <script src="script.js"></script>
