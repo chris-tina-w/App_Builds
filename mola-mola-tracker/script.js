@@ -103,6 +103,19 @@ function getPreviewToday() {
 
 // --- Firestore data layer ------------------------------------------------
 
+const dataErrorBanner = document.getElementById('data-error-banner');
+const dataErrorText = document.getElementById('data-error-text');
+const dataErrorDismiss = document.getElementById('data-error-dismiss');
+
+dataErrorDismiss.addEventListener('click', () => dataErrorBanner.classList.add('hidden'));
+
+function showDataError(context, err) {
+  console.error(context, err);
+  const detail = err && err.code ? err.code : (err && err.message ? err.message : String(err));
+  dataErrorText.textContent = `${context}: ${detail}`;
+  dataErrorBanner.classList.remove('hidden');
+}
+
 function cyclesCollection(uid) {
   return collection(db, 'users', uid, 'cycles');
 }
@@ -118,51 +131,62 @@ function subscribeToCycles(uid) {
       render();
     },
     (err) => {
-      console.error('Firestore sync error', err);
+      showDataError('Could not load your data', err);
     }
   );
 }
 
 function addCycle(start, end) {
   if (!currentUser) return;
-  addDoc(cyclesCollection(currentUser.uid), { start, end: end || null });
+  addDoc(cyclesCollection(currentUser.uid), { start, end: end || null })
+    .catch((err) => showDataError('Could not save entry', err));
 }
 
 function deleteCycle(key) {
   if (!currentUser) return;
-  deleteDoc(doc(db, 'users', currentUser.uid, 'cycles', key));
+  deleteDoc(doc(db, 'users', currentUser.uid, 'cycles', key))
+    .catch((err) => showDataError('Could not delete entry', err));
 }
 
 function closeOpenCycleToday() {
   if (!currentUser) return;
   const openCycle = cycles.find(c => !c.end);
   if (!openCycle) return;
-  updateDoc(doc(db, 'users', currentUser.uid, 'cycles', openCycle.key), { end: todayStr() });
+  updateDoc(doc(db, 'users', currentUser.uid, 'cycles', openCycle.key), { end: todayStr() })
+    .catch((err) => showDataError('Could not update entry', err));
 }
 
 async function seedSampleData() {
   if (!currentUser) return;
-  const batch = writeBatch(db);
-  cycles.forEach((c) => batch.delete(doc(db, 'users', currentUser.uid, 'cycles', c.key)));
+  try {
+    const batch = writeBatch(db);
+    cycles.forEach((c) => batch.delete(doc(db, 'users', currentUser.uid, 'cycles', c.key)));
 
-  let start = addDays(parseDate(todayStr()), -21);
-  for (let i = 0; i < 10; i++) {
-    const periodLen = randInt(4, 6);
-    const end = addDays(start, periodLen - 1);
-    const newDocRef = doc(cyclesCollection(currentUser.uid));
-    batch.set(newDocRef, { start: fmtLocal(start), end: fmtLocal(end) });
-    const cycleLen = randInt(26, 31);
-    start = addDays(start, -cycleLen);
+    let start = addDays(parseDate(todayStr()), -21);
+    for (let i = 0; i < 10; i++) {
+      const periodLen = randInt(4, 6);
+      const end = addDays(start, periodLen - 1);
+      const newDocRef = doc(cyclesCollection(currentUser.uid));
+      batch.set(newDocRef, { start: fmtLocal(start), end: fmtLocal(end) });
+      const cycleLen = randInt(26, 31);
+      start = addDays(start, -cycleLen);
+    }
+    await batch.commit();
+  } catch (err) {
+    showDataError('Could not load sample data', err);
   }
-  await batch.commit();
 }
 
 async function clearAllData() {
   if (!currentUser) return;
   if (!confirm('Clear all logged cycles? This cannot be undone.')) return;
-  const batch = writeBatch(db);
-  cycles.forEach((c) => batch.delete(doc(db, 'users', currentUser.uid, 'cycles', c.key)));
-  await batch.commit();
+  try {
+    const batch = writeBatch(db);
+    cycles.forEach((c) => batch.delete(doc(db, 'users', currentUser.uid, 'cycles', c.key)));
+    await batch.commit();
+  } catch (err) {
+    showDataError('Could not clear data', err);
+  }
 }
 
 // Finds the cycle (open or closed) that a given date falls inside, if any.
