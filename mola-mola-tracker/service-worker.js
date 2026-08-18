@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mola-mola-tracker-v2';
+const CACHE_NAME = 'mola-mola-tracker-v3';
 const APP_SHELL = [
   './',
   './index.html',
@@ -32,21 +32,22 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Network-first: always try to fetch the latest version so app updates show
+// up immediately on reload. Only fall back to the cache when offline, so an
+// unchanged service-worker.js (which browsers use to decide whether to
+// re-install) never causes stale app code to keep being served.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((response) => {
-          if (response && response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (response && response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
