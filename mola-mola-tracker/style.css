@@ -178,6 +178,13 @@ h1 {
   line-height: 1.1;
 }
 
+.countdown-note {
+  font-size: 0.72rem;
+  color: var(--sea-mid);
+  line-height: 1.3;
+  max-width: 280px;
+}
+
 .wave-box {
   position: relative;
   width: 100%;
@@ -532,6 +539,96 @@ input[type="date"]:focus {
   flex-wrap: wrap;
 }
 
+.account-bar {
+  max-width: 480px;
+  margin: 0 auto 12px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 8px 8px 16px;
+  background: rgba(255,255,255,0.14);
+  border-radius: 12px;
+  color: white;
+}
+
+.account-email {
+  font-size: 0.78rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-bar .btn-ghost {
+  color: white;
+  border-color: rgba(255,255,255,0.4);
+  flex-shrink: 0;
+}
+.account-bar .btn-ghost:hover { background: rgba(255,255,255,0.12); }
+
+.signin-screen {
+  max-width: 480px;
+  margin: 40px auto 0;
+  position: relative;
+  z-index: 1;
+}
+
+.signin-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 36px 28px;
+}
+
+.signin-icon { width: 110px; }
+.signin-icon svg { width: 100%; height: auto; }
+.signin-icon .body,
+.signin-icon .fin { fill: #9fd8e8; stroke: #3f7f95; stroke-width: 3; }
+.signin-icon .eye { fill: #0b2942; }
+
+.signin-card h2 {
+  margin: 0;
+  color: var(--sea-deep);
+  font-size: 1.3rem;
+}
+
+.signin-card p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.signin-google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: white;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+  border-radius: 12px;
+  padding: 11px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.signin-google-btn:hover { background: #f7f8f8; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+.signin-google-btn:active { background: #eee; }
+
+.signin-error {
+  color: var(--coral-deep);
+  font-size: 0.82rem;
+  min-height: 1.1em;
+}
+
 .install-banner {
   max-width: 480px;
   margin: 0 auto 16px;
@@ -599,6 +696,7 @@ input[type="date"]:focus {
   .open-cycle-banner { background: rgba(232, 97, 90, 0.12); }
   .countdown-widget { background: linear-gradient(135deg, rgba(159,216,232,0.12), rgba(159,216,232,0.06)); }
   .countdown-number { color: #cdeef2; }
+  .countdown-note { color: #9fd8e8; }
   .wave-box { background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)); }
   .btn-ghost { color: #9fd8e8; }
   .mola-info-bubble { background: radial-gradient(circle at 35% 30%, rgba(159,216,232,0.25), rgba(159,216,232,0.1)); }
@@ -607,4 +705,6 @@ input[type="date"]:focus {
   .dialog-header h2 { color: #9fd8e8; }
   .dialog-close { background: rgba(255,255,255,0.1); color: #cdeef2; }
   .dev-panel-summary { color: #9fd8e8; }
+  .signin-card h2 { color: #9fd8e8; }
+  .signin-card p { color: #e8f4f8; }
 }

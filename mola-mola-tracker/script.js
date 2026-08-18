@@ -1,4 +1,24 @@
-const STORAGE_KEY = 'molaMolaCycles';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signOut as fbSignOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, writeBatch
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCaY86eQvnpWBJN8I1TsxthWtpyzDv3xx8",
+  authDomain: "mola-mola-4c0c3.firebaseapp.com",
+  projectId: "mola-mola-4c0c3",
+  storageBucket: "mola-mola-4c0c3.firebasestorage.app",
+  messagingSenderId: "815657708710",
+  appId: "1:815657708710:web:fc8409057c5172b5d89867"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const db = getFirestore(firebaseApp);
+const googleProvider = new GoogleAuthProvider();
 
 const molaEl = document.getElementById('mola');
 const moodBubble = document.getElementById('mood-bubble');
@@ -14,6 +34,7 @@ const openBanner = document.getElementById('open-cycle-banner');
 const openBannerText = document.getElementById('open-cycle-text');
 const endTodayBtn = document.getElementById('end-today-btn');
 const statDaysUntil = document.getElementById('stat-days-until');
+const countdownNote = document.getElementById('countdown-note');
 const seedDataBtn = document.getElementById('seed-data-btn');
 const clearDataBtn = document.getElementById('clear-data-btn');
 
@@ -30,7 +51,18 @@ const dateOffsetSlider = document.getElementById('date-offset-slider');
 const dateOffsetValue = document.getElementById('date-offset-value');
 const dateOffsetReset = document.getElementById('date-offset-reset');
 
+const appShell = document.getElementById('app-shell');
+const signinScreen = document.getElementById('signin-screen');
+const googleSigninBtn = document.getElementById('google-signin-btn');
+const signinError = document.getElementById('signin-error');
+const accountBar = document.getElementById('account-bar');
+const accountEmail = document.getElementById('account-email');
+const signoutBtn = document.getElementById('signout-btn');
+
 let previewOffset = 0;
+let currentUser = null;
+let cycles = [];
+let unsubscribeCycles = null;
 
 function parseDate(str) {
   return new Date(str + 'T00:00:00');
@@ -69,39 +101,68 @@ function getPreviewToday() {
   return addDays(parseDate(todayStr()), previewOffset);
 }
 
-function loadCycles() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    return raw.sort((a, b) => a.start.localeCompare(b.start));
-  } catch {
-    return [];
-  }
+// --- Firestore data layer ------------------------------------------------
+
+function cyclesCollection(uid) {
+  return collection(db, 'users', uid, 'cycles');
 }
 
-function saveCycles(cycles) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cycles));
+function subscribeToCycles(uid) {
+  if (unsubscribeCycles) unsubscribeCycles();
+  unsubscribeCycles = onSnapshot(
+    cyclesCollection(uid),
+    (snapshot) => {
+      cycles = snapshot.docs
+        .map((d) => ({ key: d.id, ...d.data() }))
+        .sort((a, b) => a.start.localeCompare(b.start));
+      render();
+    },
+    (err) => {
+      console.error('Firestore sync error', err);
+    }
+  );
 }
 
 function addCycle(start, end) {
-  const cycles = loadCycles();
-  cycles.push({ start, end: end || null });
-  saveCycles(cycles);
+  if (!currentUser) return;
+  addDoc(cyclesCollection(currentUser.uid), { start, end: end || null });
 }
 
-function deleteCycle(index) {
-  const cycles = loadCycles();
-  cycles.splice(index, 1);
-  saveCycles(cycles);
-  render();
+function deleteCycle(key) {
+  if (!currentUser) return;
+  deleteDoc(doc(db, 'users', currentUser.uid, 'cycles', key));
 }
 
 function closeOpenCycleToday() {
-  const cycles = loadCycles();
-  const openIndex = cycles.findIndex(c => !c.end);
-  if (openIndex === -1) return;
-  cycles[openIndex].end = todayStr();
-  saveCycles(cycles);
-  render();
+  if (!currentUser) return;
+  const openCycle = cycles.find(c => !c.end);
+  if (!openCycle) return;
+  updateDoc(doc(db, 'users', currentUser.uid, 'cycles', openCycle.key), { end: todayStr() });
+}
+
+async function seedSampleData() {
+  if (!currentUser) return;
+  const batch = writeBatch(db);
+  cycles.forEach((c) => batch.delete(doc(db, 'users', currentUser.uid, 'cycles', c.key)));
+
+  let start = addDays(parseDate(todayStr()), -21);
+  for (let i = 0; i < 10; i++) {
+    const periodLen = randInt(4, 6);
+    const end = addDays(start, periodLen - 1);
+    const newDocRef = doc(cyclesCollection(currentUser.uid));
+    batch.set(newDocRef, { start: fmtLocal(start), end: fmtLocal(end) });
+    const cycleLen = randInt(26, 31);
+    start = addDays(start, -cycleLen);
+  }
+  await batch.commit();
+}
+
+async function clearAllData() {
+  if (!currentUser) return;
+  if (!confirm('Clear all logged cycles? This cannot be undone.')) return;
+  const batch = writeBatch(db);
+  cycles.forEach((c) => batch.delete(doc(db, 'users', currentUser.uid, 'cycles', c.key)));
+  await batch.commit();
 }
 
 // Finds the cycle (open or closed) that a given date falls inside, if any.
@@ -118,6 +179,8 @@ function findActiveCycle(cycles, date) {
   return null;
 }
 
+const DEFAULT_CYCLE_LENGTH = 28;
+
 function computeStats(cycles) {
   const closed = cycles.filter(c => c.end);
   const periodLengths = closed.map(c => daysBetween(parseDate(c.start), parseDate(c.end)) + 1);
@@ -131,16 +194,24 @@ function computeStats(cycles) {
     cycleLengths.push(daysBetween(parseDate(starts[i - 1]), parseDate(starts[i])));
   }
   const recentCycleLengths = cycleLengths.slice(-6);
+  // avgCycleLength is only set once we have real history (2+ logged starts) —
+  // it's shown as-is in the stats grid, so it should never be a guess.
   const avgCycleLength = recentCycleLengths.length
     ? Math.round(recentCycleLengths.reduce((a, b) => a + b, 0) / recentCycleLengths.length)
     : null;
 
   const lastStart = starts.length ? parseDate(starts[starts.length - 1]) : null;
-  const predictedNext = lastStart && avgCycleLength
-    ? new Date(lastStart.getTime() + avgCycleLength * 86400000)
+
+  // Until there's enough history to measure a real average, fall back to a
+  // typical 28-day cycle so the countdown still has something to show.
+  const isEstimate = !avgCycleLength && !!lastStart;
+  const effectiveCycleLength = avgCycleLength || (lastStart ? DEFAULT_CYCLE_LENGTH : null);
+
+  const predictedNext = lastStart && effectiveCycleLength
+    ? new Date(lastStart.getTime() + effectiveCycleLength * 86400000)
     : null;
 
-  return { avgPeriodLength, avgCycleLength, lastStart, predictedNext };
+  return { avgPeriodLength, avgCycleLength, effectiveCycleLength, isEstimate, lastStart, predictedNext };
 }
 
 function determineMood(cycles, stats, today) {
@@ -196,13 +267,13 @@ function computeCountdown(cycles, stats, today) {
   if (activeCycle) {
     return { onPeriod: true };
   }
-  if (!stats.lastStart || !stats.avgCycleLength) {
+  if (!stats.lastStart || !stats.effectiveCycleLength) {
     return { daysUntil: null };
   }
   const dayOfCycle = daysBetween(stats.lastStart, today) + 1;
   const daysUntil = daysBetween(today, stats.predictedNext);
-  const percent = Math.max(0, Math.min(100, (dayOfCycle / stats.avgCycleLength) * 100));
-  return { daysUntil, percent, dayOfCycle, cycleLength: stats.avgCycleLength };
+  const percent = Math.max(0, Math.min(100, (dayOfCycle / stats.effectiveCycleLength) * 100));
+  return { daysUntil, percent, dayOfCycle, cycleLength: stats.effectiveCycleLength, estimated: stats.isEstimate };
 }
 
 // Builds a periodic wavy path (viewBox 400x60) with `waves` full crests, so it can
@@ -222,26 +293,6 @@ function buildWavePath(amplitude, waves = 4, width = 400, height = 60) {
   return d;
 }
 
-function seedSampleData() {
-  const cycles = [];
-  let start = addDays(parseDate(todayStr()), -21);
-  for (let i = 0; i < 10; i++) {
-    const periodLen = randInt(4, 6);
-    const end = addDays(start, periodLen - 1);
-    cycles.unshift({ start: fmtLocal(start), end: fmtLocal(end) });
-    const cycleLen = randInt(26, 31);
-    start = addDays(start, -cycleLen);
-  }
-  saveCycles(cycles);
-  render();
-}
-
-function clearAllData() {
-  if (!confirm('Clear all logged cycles? This cannot be undone.')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  render();
-}
-
 function updateOffsetLabel() {
   const d = getPreviewToday();
   if (previewOffset === 0) {
@@ -253,7 +304,6 @@ function updateOffsetLabel() {
 }
 
 function render() {
-  const cycles = loadCycles();
   const stats = computeStats(cycles);
   const previewToday = getPreviewToday();
   const moodInfo = determineMood(cycles, stats, previewToday);
@@ -265,13 +315,15 @@ function render() {
   statStatus.textContent = moodInfo.status;
   statCycleLength.textContent = stats.avgCycleLength ? `${stats.avgCycleLength} days` : '–';
   statPeriodLength.textContent = stats.avgPeriodLength ? `${stats.avgPeriodLength} days` : '–';
-  statNextStart.textContent = stats.predictedNext ? formatDate(stats.predictedNext) : '–';
+  statNextStart.textContent = stats.predictedNext
+    ? `${formatDate(stats.predictedNext)}${stats.isEstimate ? ' (est.)' : ''}`
+    : '–';
 
   const countdown = computeCountdown(cycles, stats, previewToday);
   waveMarker.classList.remove('marker-period', 'marker-soon');
   waveBox.classList.remove('wave-soon');
 
-  let urgency, percent, soon;
+  let urgency, percent, soon, note = '';
   if (countdown.onPeriod) {
     statDaysUntil.textContent = "It's here";
     percent = 100;
@@ -295,7 +347,12 @@ function render() {
       soon = daysUntil <= 3;
     }
     percent = countdown.percent;
+    if (countdown.estimated) {
+      note = `Estimate based on a typical ${DEFAULT_CYCLE_LENGTH}-day cycle — log your next period for a personalized prediction.`;
+    }
   }
+  countdownNote.textContent = note;
+  countdownNote.classList.toggle('hidden', !note);
 
   if (soon) {
     waveMarker.classList.add('marker-soon');
@@ -330,7 +387,6 @@ function render() {
     historyList.appendChild(li);
   } else {
     [...cycles].reverse().forEach((cycle) => {
-      const realIndex = cycles.indexOf(cycle);
       const li = document.createElement('li');
       li.className = 'history-item';
 
@@ -349,7 +405,7 @@ function render() {
       delBtn.className = 'delete-btn';
       delBtn.textContent = '✕';
       delBtn.title = 'Delete entry';
-      delBtn.addEventListener('click', () => deleteCycle(realIndex));
+      delBtn.addEventListener('click', () => deleteCycle(cycle.key));
 
       li.appendChild(datesSpan);
       li.appendChild(delBtn);
@@ -369,7 +425,6 @@ logForm.addEventListener('submit', (e) => {
   }
   addCycle(start, end);
   logForm.reset();
-  render();
 });
 
 endTodayBtn.addEventListener('click', closeOpenCycleToday);
@@ -400,6 +455,40 @@ endInput.max = todayStr();
 
 updateOffsetLabel();
 render();
+
+// --- Auth ------------------------------------------------------------------
+
+onAuthStateChanged(auth, (user) => {
+  currentUser = user;
+  if (user) {
+    signinScreen.classList.add('hidden');
+    appShell.classList.remove('hidden');
+    accountBar.classList.remove('hidden');
+    accountEmail.textContent = user.email || '';
+    subscribeToCycles(user.uid);
+  } else {
+    signinScreen.classList.remove('hidden');
+    appShell.classList.add('hidden');
+    accountBar.classList.add('hidden');
+    if (unsubscribeCycles) {
+      unsubscribeCycles();
+      unsubscribeCycles = null;
+    }
+    cycles = [];
+    render();
+  }
+});
+
+googleSigninBtn.addEventListener('click', async () => {
+  signinError.textContent = '';
+  try {
+    await signInWithPopup(auth, googleProvider);
+  } catch (err) {
+    signinError.textContent = `Sign-in failed: ${err.message}`;
+  }
+});
+
+signoutBtn.addEventListener('click', () => fbSignOut(auth));
 
 // --- PWA: install banner + service worker -------------------------------
 

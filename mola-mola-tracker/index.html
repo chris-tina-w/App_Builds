@@ -52,7 +52,38 @@
     </div>
   </div>
 
-  <main class="content">
+  <div id="account-bar" class="account-bar hidden">
+    <span id="account-email" class="account-email"></span>
+    <button type="button" id="signout-btn" class="btn-ghost">Sign out</button>
+  </div>
+
+  <div id="signin-screen" class="signin-screen">
+    <div class="card signin-card">
+      <div class="signin-icon">
+        <svg viewBox="0 0 300 220" xmlns="http://www.w3.org/2000/svg">
+          <ellipse class="body" cx="150" cy="110" rx="95" ry="70"/>
+          <path class="fin fin-top" d="M120,45 C130,-10 175,-15 165,45 C155,65 130,65 120,45 Z"/>
+          <path class="fin fin-bottom" d="M120,175 C130,235 175,240 165,175 C155,150 130,150 120,175 Z"/>
+          <path class="fin fin-tail" d="M235,80 C270,90 275,130 235,140 C255,110 250,105 235,80 Z"/>
+          <circle class="eye" cx="205" cy="90" r="8"/>
+        </svg>
+      </div>
+      <h2>Welcome back</h2>
+      <p>Sign in to sync your cycle data securely to the cloud — it's tied to your Google account, not this browser.</p>
+      <button type="button" id="google-signin-btn" class="signin-google-btn">
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+          <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+          <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+          <path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/>
+          <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.580z"/>
+        </svg>
+        Sign in with Google
+      </button>
+      <p id="signin-error" class="signin-error"></p>
+    </div>
+  </div>
+
+  <main class="content hidden" id="app-shell">
 
     <section class="card" id="stats-card">
       <h2>Overview</h2>
@@ -60,6 +91,7 @@
       <div class="countdown-widget" id="countdown-widget">
         <span class="stat-label">Days until next period</span>
         <span class="countdown-number" id="stat-days-until">–</span>
+        <span class="countdown-note hidden" id="countdown-note"></span>
         <div class="wave-box" id="wave-box">
           <svg class="wave-svg wave-back" id="wave-svg-back" viewBox="0 0 400 60" preserveAspectRatio="none">
             <path id="wave-path-back" d=""/>
@@ -165,10 +197,10 @@
   </main>
 
   <footer class="app-footer">
-    <p>Your data stays on this device only (browser local storage). Not medical advice.</p>
+    <p>Your data is stored securely in your own Google-linked account, not this browser. Not medical advice.</p>
   </footer>
 </div>
 
-<script src="script.js"></script>
+<script type="module" src="script.js"></script>
 </body>
 </html>
