@@ -83,43 +83,16 @@ body {
   50% { transform: translateY(-8px) rotate(2deg); }
 }
 
-#mola .body {
-  fill: #9fd8e8;
-  stroke: #3f7f95;
-  stroke-width: 3;
-  transition: fill 0.6s ease;
-}
-#mola .fin {
-  fill: #7ec3d9;
-  stroke: #3f7f95;
-  stroke-width: 3;
-  transition: fill 0.6s ease;
-}
-#mola .eye { fill: #0b2942; }
-#mola .eye-shine { fill: #ffffff; }
-#mola .mouth {
-  fill: none;
-  stroke: #0b2942;
-  stroke-width: 3;
-  stroke-linecap: round;
-}
-#mola .cheek-blush { fill: #ff9e9e; opacity: 0.6; }
+/* Mood states (the mascot is now a painted illustration, so moods are
+   conveyed with a glow/tint filter rather than recoloring fill paths) */
+#mola.mood-period { filter: drop-shadow(0 0 10px rgba(232, 97, 90, 0.65)) saturate(1.1); }
 
-/* Mood states */
-#mola.mood-period .body,
-#mola.mood-period .fin { fill: #e39fb0; stroke: #a85a76; }
-
-#mola.mood-fertile .body,
-#mola.mood-fertile .fin { fill: #ffe08a; stroke: #d9a441; }
 #mola.mood-fertile { animation: bob 2.2s ease-in-out infinite, glow 1.8s ease-in-out infinite; }
 
 @keyframes glow {
   0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 224, 138, 0)); }
   50% { filter: drop-shadow(0 0 14px rgba(255, 224, 138, 0.8)); }
 }
-
-#mola.mood-calm .body,
-#mola.mood-calm .fin { fill: #9fd8e8; stroke: #3f7f95; }
 
 h1 {
   font-size: 1.7rem;
@@ -234,15 +207,10 @@ h1 {
   filter: drop-shadow(0 3px 3px rgba(11, 61, 92, 0.35));
 }
 
-.wave-marker svg { width: 100%; height: 100%; }
-.wave-marker .body,
-.wave-marker .fin { fill: #9fd8e8; stroke: #3f7f95; stroke-width: 6; }
-.wave-marker .eye { fill: #0b2942; }
+.wave-marker img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
-.wave-marker.marker-period .body,
-.wave-marker.marker-period .fin { fill: #e39fb0; stroke: #a85a76; }
-.wave-marker.marker-soon .body,
-.wave-marker.marker-soon .fin { fill: #ffb199; stroke: #d9704a; }
+.wave-marker.marker-period img { filter: drop-shadow(0 0 4px rgba(232, 97, 90, 0.7)); }
+.wave-marker.marker-soon img { filter: drop-shadow(0 0 4px rgba(217, 112, 74, 0.7)); }
 
 @keyframes wave-bob {
   0%, 100% { transform: translate(-50%, 0) rotate(-8deg); }
@@ -282,10 +250,7 @@ h1 {
 }
 .mola-info-btn:active .mola-info-bubble { transform: scale(0.96); }
 
-.mola-info-bubble svg { width: 68%; height: 68%; }
-.mola-info-bubble .body,
-.mola-info-bubble .fin { fill: #9fd8e8; stroke: #3f7f95; stroke-width: 6; }
-.mola-info-bubble .eye { fill: #0b2942; }
+.mola-info-bubble img { width: 68%; height: 68%; object-fit: contain; }
 
 .mola-info-bubble .bubble {
   position: absolute;
@@ -705,10 +670,7 @@ input[type="date"]:focus {
 }
 
 .signin-icon { width: 110px; }
-.signin-icon svg { width: 100%; height: auto; }
-.signin-icon .body,
-.signin-icon .fin { fill: #9fd8e8; stroke: #3f7f95; stroke-width: 3; }
-.signin-icon .eye { fill: #0b2942; }
+.signin-icon img { width: 100%; height: auto; display: block; }
 
 .signin-card h2 {
   margin: 0;
