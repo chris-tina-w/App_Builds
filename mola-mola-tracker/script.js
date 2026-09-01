@@ -62,11 +62,13 @@ const endCalPrev = document.getElementById('end-cal-prev');
 const endCalNext = document.getElementById('end-cal-next');
 const endCalLabel = document.getElementById('end-cal-label');
 const endCalGrid = document.getElementById('end-cal-grid');
+const savePeriodBtn = document.getElementById('save-period-btn');
 const periodOngoingBtn = document.getElementById('period-ongoing-btn');
 
 let pendingStart = null;
-let startCalView = { year: 0, month: 0 };
-let endCalView = { year: 0, month: 0 };
+let pendingEnd = null;
+let startCalView = null;
+let endCalView = null;
 
 const appShell = document.getElementById('app-shell');
 const signinScreen = document.getElementById('signin-screen');
@@ -119,9 +121,43 @@ function getPreviewToday() {
 }
 
 // --- Calendar date pickers -------------------------------------------------
+//
+// Each dialog shows a rolling 5-week (35-day) window instead of a rigid
+// calendar-month grid, so the reference date (today, or the chosen start
+// date) sits roughly in the middle rather than the window always starting
+// on the 1st.
 
-function renderCalendar(gridEl, labelEl, view, { selected, minDate, maxDate, onSelect }) {
-  labelEl.textContent = new Date(view.year, view.month, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+const CAL_WINDOW_DAYS = 35;
+
+function startOfWeek(date) {
+  const d = new Date(date);
+  d.setDate(d.getDate() - d.getDay());
+  return d;
+}
+
+// Centers the 35-day window on centerDateStr (e.g. today's date lands
+// roughly in the middle row rather than always being the 1st of the grid).
+function centeredWindowStart(centerDateStr) {
+  return startOfWeek(addDays(parseDate(centerDateStr), -17));
+}
+
+function formatWindowLabel(windowStart) {
+  const windowEnd = addDays(windowStart, CAL_WINDOW_DAYS - 1);
+  const sameMonth = windowStart.getMonth() === windowEnd.getMonth() &&
+    windowStart.getFullYear() === windowEnd.getFullYear();
+  if (sameMonth) {
+    return windowStart.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  }
+  const sameYear = windowStart.getFullYear() === windowEnd.getFullYear();
+  const startLabel = windowStart.toLocaleDateString(undefined, { month: 'short', year: sameYear ? undefined : 'numeric' });
+  const endLabel = windowEnd.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  return `${startLabel} – ${endLabel}`;
+}
+
+// Builds the weekday header + 35 day cells; dayRenderer(btn, dateStr, col)
+// decides each cell's classes, disabled state, and click handler.
+function renderCalendarGrid(gridEl, labelEl, windowStart, dayRenderer) {
+  labelEl.textContent = formatWindowLabel(windowStart);
   gridEl.innerHTML = '';
   ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach((wd) => {
     const el = document.createElement('div');
@@ -129,77 +165,87 @@ function renderCalendar(gridEl, labelEl, view, { selected, minDate, maxDate, onS
     el.textContent = wd;
     gridEl.appendChild(el);
   });
-  const firstDow = new Date(view.year, view.month, 1).getDay();
-  const numDays = new Date(view.year, view.month + 1, 0).getDate();
-  for (let i = 0; i < firstDow; i++) {
-    const blank = document.createElement('div');
-    blank.className = 'cal-day cal-day-empty';
-    gridEl.appendChild(blank);
-  }
-  for (let d = 1; d <= numDays; d++) {
-    const dateStr = fmtLocal(new Date(view.year, view.month, d));
+  for (let i = 0; i < CAL_WINDOW_DAYS; i++) {
+    const date = addDays(windowStart, i);
+    const dateStr = fmtLocal(date);
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'cal-day';
-    btn.textContent = String(d);
-    if (dateStr === todayStr()) btn.classList.add('cal-day-today');
-    if (dateStr === selected) btn.classList.add('cal-day-selected');
-    const outOfRange = (minDate && dateStr < minDate) || (maxDate && dateStr > maxDate);
-    if (outOfRange) {
-      btn.disabled = true;
-      btn.classList.add('cal-day-disabled');
-    } else {
-      btn.addEventListener('click', () => onSelect(dateStr));
-    }
+    const bubble = document.createElement('span');
+    bubble.className = 'cal-day-bubble';
+    bubble.textContent = String(date.getDate());
+    btn.appendChild(bubble);
+    dayRenderer(btn, dateStr, i % 7);
     gridEl.appendChild(btn);
   }
 }
 
-function updateCalNavButtons(nextBtn, view, maxDateStr) {
+function updateCalNavButtons(nextBtn, windowStart, maxDateStr) {
   const maxDate = parseDate(maxDateStr);
-  nextBtn.disabled = view.year > maxDate.getFullYear() ||
-    (view.year === maxDate.getFullYear() && view.month >= maxDate.getMonth());
+  const nextWindowStart = addDays(windowStart, CAL_WINDOW_DAYS);
+  nextBtn.disabled = nextWindowStart > maxDate;
+}
+
+function startDayRenderer(btn, dateStr) {
+  const max = todayStr();
+  if (dateStr === todayStr()) btn.classList.add('cal-day-today');
+  if (dateStr > max) {
+    btn.disabled = true;
+    btn.classList.add('cal-day-disabled');
+  } else {
+    btn.addEventListener('click', () => {
+      pendingStart = dateStr;
+      pendingEnd = null;
+      startCalDialog.close();
+      openEndCalendar();
+    });
+  }
 }
 
 function renderStartCalendar() {
-  const max = todayStr();
-  renderCalendar(startCalGrid, startCalLabel, startCalView, {
-    selected: null,
-    maxDate: max,
-    onSelect: (dateStr) => {
-      pendingStart = dateStr;
-      startCalDialog.close();
-      openEndCalendar();
-    }
-  });
-  updateCalNavButtons(startCalNext, startCalView, max);
+  renderCalendarGrid(startCalGrid, startCalLabel, startCalView, startDayRenderer);
+  updateCalNavButtons(startCalNext, startCalView, todayStr());
 }
 
 function openStartCalendar() {
-  const now = parseDate(todayStr());
-  startCalView = { year: now.getFullYear(), month: now.getMonth() };
+  startCalView = centeredWindowStart(todayStr());
   renderStartCalendar();
   startCalDialog.showModal();
 }
 
-function renderEndCalendar() {
+function endDayRenderer(btn, dateStr, col) {
   const max = todayStr();
-  renderCalendar(endCalGrid, endCalLabel, endCalView, {
-    selected: null,
-    minDate: pendingStart,
-    maxDate: max,
-    onSelect: (dateStr) => {
-      addCycle(pendingStart, dateStr);
-      pendingStart = null;
-      endCalDialog.close();
-    }
+  if (dateStr === todayStr()) btn.classList.add('cal-day-today');
+  if (dateStr === pendingStart) btn.classList.add('cal-day-anchor');
+
+  const outOfRange = dateStr < pendingStart || dateStr > max;
+  if (outOfRange) {
+    btn.disabled = true;
+    btn.classList.add('cal-day-disabled');
+    return;
+  }
+
+  if (pendingEnd && dateStr >= pendingStart && dateStr <= pendingEnd) {
+    btn.classList.add('cal-day-in-range');
+    if (dateStr === pendingStart || col === 0) btn.classList.add('cal-range-cap-left');
+    if (dateStr === pendingEnd || col === 6) btn.classList.add('cal-range-cap-right');
+  }
+
+  btn.addEventListener('click', () => {
+    pendingEnd = dateStr;
+    renderEndCalendar();
   });
-  updateCalNavButtons(endCalNext, endCalView, max);
+}
+
+function renderEndCalendar() {
+  renderCalendarGrid(endCalGrid, endCalLabel, endCalView, endDayRenderer);
+  updateCalNavButtons(endCalNext, endCalView, todayStr());
+  savePeriodBtn.disabled = !pendingEnd;
 }
 
 function openEndCalendar() {
-  const startDate = parseDate(pendingStart);
-  endCalView = { year: startDate.getFullYear(), month: startDate.getMonth() };
+  pendingEnd = null;
+  endCalView = centeredWindowStart(pendingStart);
   renderEndCalendar();
   endCalDialog.showModal();
 }
@@ -547,18 +593,17 @@ startCalDialog.addEventListener('click', (e) => {
   if (e.target === startCalDialog) startCalDialog.close();
 });
 startCalPrev.addEventListener('click', () => {
-  startCalView.month--;
-  if (startCalView.month < 0) { startCalView.month = 11; startCalView.year--; }
+  startCalView = addDays(startCalView, -CAL_WINDOW_DAYS);
   renderStartCalendar();
 });
 startCalNext.addEventListener('click', () => {
-  startCalView.month++;
-  if (startCalView.month > 11) { startCalView.month = 0; startCalView.year++; }
+  startCalView = addDays(startCalView, CAL_WINDOW_DAYS);
   renderStartCalendar();
 });
 
 function closeEndCalendar() {
   pendingStart = null;
+  pendingEnd = null;
   endCalDialog.close();
 }
 endCalClose.addEventListener('click', closeEndCalendar);
@@ -566,18 +611,24 @@ endCalDialog.addEventListener('click', (e) => {
   if (e.target === endCalDialog) closeEndCalendar();
 });
 endCalPrev.addEventListener('click', () => {
-  endCalView.month--;
-  if (endCalView.month < 0) { endCalView.month = 11; endCalView.year--; }
+  endCalView = addDays(endCalView, -CAL_WINDOW_DAYS);
   renderEndCalendar();
 });
 endCalNext.addEventListener('click', () => {
-  endCalView.month++;
-  if (endCalView.month > 11) { endCalView.month = 0; endCalView.year++; }
+  endCalView = addDays(endCalView, CAL_WINDOW_DAYS);
   renderEndCalendar();
+});
+savePeriodBtn.addEventListener('click', () => {
+  if (!pendingEnd) return;
+  addCycle(pendingStart, pendingEnd);
+  pendingStart = null;
+  pendingEnd = null;
+  endCalDialog.close();
 });
 periodOngoingBtn.addEventListener('click', () => {
   addCycle(pendingStart, null);
   pendingStart = null;
+  pendingEnd = null;
   endCalDialog.close();
 });
 

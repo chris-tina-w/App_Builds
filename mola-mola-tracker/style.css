@@ -354,7 +354,7 @@ h1 {
 }
 
 .cal-nav-btn {
-  background: var(--sea-foam);
+  background: radial-gradient(circle at 35% 30%, #ffffff, var(--sea-foam) 75%);
   border: none;
   border-radius: 50%;
   width: 32px;
@@ -363,14 +363,17 @@ h1 {
   line-height: 1;
   cursor: pointer;
   color: var(--sea-deep);
+  box-shadow: 0 2px 5px rgba(11, 61, 92, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.7);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
-.cal-nav-btn:hover:not(:disabled) { background: #b8e4ec; }
-.cal-nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.cal-nav-btn:hover:not(:disabled) { transform: scale(1.08); }
+.cal-nav-btn:active:not(:disabled) { transform: scale(0.88); box-shadow: inset 0 2px 4px rgba(11, 61, 92, 0.25); }
+.cal-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; box-shadow: none; }
 
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 0;
 }
 
 .cal-weekday {
@@ -379,32 +382,82 @@ h1 {
   font-weight: 700;
   color: var(--sea-mid);
   text-transform: uppercase;
-  padding-bottom: 4px;
+  padding-bottom: 6px;
 }
 
+/* Each .cal-day is a full, gapless grid cell (so range fills below can
+   touch edge-to-edge); the inner bubble carries the actual "water bubble"
+   look and is what visibly reacts to hover/press. */
 .cal-day {
   aspect-ratio: 1;
   border: none;
   background: none;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-family: inherit;
-  color: var(--ink);
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  font-family: inherit;
 }
-.cal-day:hover:not(:disabled) { background: var(--sea-foam); }
-.cal-day-empty { visibility: hidden; cursor: default; }
-.cal-day-today { font-weight: 800; box-shadow: inset 0 0 0 2px var(--sea-light); }
-.cal-day-selected { background: var(--sea-mid); color: white; }
-.cal-day-disabled { color: #c3d3da; cursor: not-allowed; }
+
+.cal-day-bubble {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  color: var(--ink);
+  background: radial-gradient(circle at 32% 28%, #ffffff, var(--sea-foam) 75%);
+  box-shadow: 0 2px 4px rgba(11, 61, 92, 0.18), inset 0 1px 2px rgba(255, 255, 255, 0.8);
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.12s ease, background 0.15s ease;
+}
+.cal-day:hover:not(:disabled) .cal-day-bubble {
+  transform: scale(1.12);
+  box-shadow: 0 4px 8px rgba(11, 61, 92, 0.28), inset 0 1px 2px rgba(255, 255, 255, 0.85);
+}
+.cal-day:active:not(:disabled) .cal-day-bubble {
+  transform: scale(0.82);
+  box-shadow: 0 1px 2px rgba(11, 61, 92, 0.2), inset 0 2px 5px rgba(11, 61, 92, 0.2);
+}
+
+.cal-day-today .cal-day-bubble { font-weight: 800; box-shadow: inset 0 0 0 2px var(--sea-light); }
+.cal-day-anchor .cal-day-bubble { box-shadow: inset 0 0 0 2px var(--coral-deep); }
+
+.cal-day:disabled { cursor: not-allowed; }
+.cal-day:disabled .cal-day-bubble {
+  background: none;
+  box-shadow: none;
+  color: #c3d3da;
+}
+
+/* Range fill sits on the outer cell (not the bubble) so adjacent days
+   connect into one continuous pill with rounded caps only at the true
+   start/end of the selection (or where a row wraps). */
+.cal-day-in-range { background: var(--coral); }
+.cal-day-in-range .cal-day-bubble {
+  background: none;
+  box-shadow: none;
+  color: white;
+  transform: none;
+}
+.cal-day-in-range.cal-day-anchor .cal-day-bubble { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85); }
+.cal-range-cap-left { border-top-left-radius: 999px; border-bottom-left-radius: 999px; }
+.cal-range-cap-right { border-top-right-radius: 999px; border-bottom-right-radius: 999px; }
 
 .calendar-footer {
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px dashed rgba(63, 127, 149, 0.3);
   display: flex;
-  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
+.calendar-footer .btn-primary,
+.calendar-footer .btn-secondary { flex: 1; min-width: 140px; }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+.btn-primary:disabled:active { transform: none; }
 
 .stats-grid {
   display: grid;
@@ -779,10 +832,11 @@ input[type="date"]:focus {
   .signin-card h2 { color: #9fd8e8; }
   .signin-card p { color: #e8f4f8; }
   .cal-label { color: #9fd8e8; }
-  .cal-nav-btn { background: rgba(255,255,255,0.1); color: #cdeef2; }
+  .cal-nav-btn { background: rgba(255,255,255,0.1); color: #cdeef2; box-shadow: none; }
   .cal-nav-btn:hover:not(:disabled) { background: rgba(255,255,255,0.18); }
   .cal-weekday { color: #9fd8e8; }
-  .cal-day { color: #e8f4f8; }
-  .cal-day:hover:not(:disabled) { background: rgba(255,255,255,0.08); }
-  .cal-day-disabled { color: rgba(255,255,255,0.25); }
+  .cal-day-bubble { color: #e8f4f8; background: rgba(255,255,255,0.08); box-shadow: none; }
+  .cal-day-today .cal-day-bubble { box-shadow: inset 0 0 0 2px var(--sea-light); }
+  .cal-day-anchor .cal-day-bubble { box-shadow: inset 0 0 0 2px var(--coral-deep); }
+  .cal-day:disabled .cal-day-bubble { color: rgba(255,255,255,0.25); background: none; }
 }
