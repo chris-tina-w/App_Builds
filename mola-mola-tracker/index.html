@@ -162,22 +162,41 @@
 
     <section class="card" id="log-card">
       <h2>Log a period</h2>
-      <form id="log-form">
-        <div class="field-row">
-          <label for="start-date">Start date</label>
-          <input type="date" id="start-date" required>
-        </div>
-        <div class="field-row">
-          <label for="end-date">End date <span class="optional">(optional — add later)</span></label>
-          <input type="date" id="end-date">
-        </div>
-        <button type="submit" class="btn-primary">Save entry</button>
-      </form>
+      <button type="button" id="start-period-btn" class="btn-primary">Start period</button>
       <div id="open-cycle-banner" class="open-cycle-banner hidden">
         <span id="open-cycle-text"></span>
         <button id="end-today-btn" class="btn-secondary">End period today</button>
       </div>
     </section>
+
+    <dialog id="start-cal-dialog" class="mola-dialog calendar-dialog">
+      <div class="dialog-header">
+        <h2>Start date</h2>
+        <button type="button" id="start-cal-close" class="dialog-close" aria-label="Close">✕</button>
+      </div>
+      <div class="calendar-nav">
+        <button type="button" id="start-cal-prev" class="cal-nav-btn" aria-label="Previous month">‹</button>
+        <span id="start-cal-label" class="cal-label"></span>
+        <button type="button" id="start-cal-next" class="cal-nav-btn" aria-label="Next month">›</button>
+      </div>
+      <div class="calendar-grid" id="start-cal-grid"></div>
+    </dialog>
+
+    <dialog id="end-cal-dialog" class="mola-dialog calendar-dialog">
+      <div class="dialog-header">
+        <h2>End date</h2>
+        <button type="button" id="end-cal-close" class="dialog-close" aria-label="Close">✕</button>
+      </div>
+      <div class="calendar-nav">
+        <button type="button" id="end-cal-prev" class="cal-nav-btn" aria-label="Previous month">‹</button>
+        <span id="end-cal-label" class="cal-label"></span>
+        <button type="button" id="end-cal-next" class="cal-nav-btn" aria-label="Next month">›</button>
+      </div>
+      <div class="calendar-grid" id="end-cal-grid"></div>
+      <div class="calendar-footer">
+        <button type="button" id="period-ongoing-btn" class="btn-secondary">Period has not ended</button>
+      </div>
+    </dialog>
 
     <section class="card" id="history-card">
       <h2>History</h2>

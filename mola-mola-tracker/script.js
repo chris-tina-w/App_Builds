@@ -26,9 +26,6 @@ const statStatus = document.getElementById('stat-status');
 const statCycleLength = document.getElementById('stat-cycle-length');
 const statPeriodLength = document.getElementById('stat-period-length');
 const statNextStart = document.getElementById('stat-next-start');
-const logForm = document.getElementById('log-form');
-const startInput = document.getElementById('start-date');
-const endInput = document.getElementById('end-date');
 const historyList = document.getElementById('history-list');
 const openBanner = document.getElementById('open-cycle-banner');
 const openBannerText = document.getElementById('open-cycle-text');
@@ -50,6 +47,26 @@ const molaInfoClose = document.getElementById('mola-info-close');
 const dateOffsetSlider = document.getElementById('date-offset-slider');
 const dateOffsetValue = document.getElementById('date-offset-value');
 const dateOffsetReset = document.getElementById('date-offset-reset');
+
+const startPeriodBtn = document.getElementById('start-period-btn');
+const startCalDialog = document.getElementById('start-cal-dialog');
+const startCalClose = document.getElementById('start-cal-close');
+const startCalPrev = document.getElementById('start-cal-prev');
+const startCalNext = document.getElementById('start-cal-next');
+const startCalLabel = document.getElementById('start-cal-label');
+const startCalGrid = document.getElementById('start-cal-grid');
+
+const endCalDialog = document.getElementById('end-cal-dialog');
+const endCalClose = document.getElementById('end-cal-close');
+const endCalPrev = document.getElementById('end-cal-prev');
+const endCalNext = document.getElementById('end-cal-next');
+const endCalLabel = document.getElementById('end-cal-label');
+const endCalGrid = document.getElementById('end-cal-grid');
+const periodOngoingBtn = document.getElementById('period-ongoing-btn');
+
+let pendingStart = null;
+let startCalView = { year: 0, month: 0 };
+let endCalView = { year: 0, month: 0 };
 
 const appShell = document.getElementById('app-shell');
 const signinScreen = document.getElementById('signin-screen');
@@ -99,6 +116,92 @@ function randInt(min, max) {
 
 function getPreviewToday() {
   return addDays(parseDate(todayStr()), previewOffset);
+}
+
+// --- Calendar date pickers -------------------------------------------------
+
+function renderCalendar(gridEl, labelEl, view, { selected, minDate, maxDate, onSelect }) {
+  labelEl.textContent = new Date(view.year, view.month, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  gridEl.innerHTML = '';
+  ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach((wd) => {
+    const el = document.createElement('div');
+    el.className = 'cal-weekday';
+    el.textContent = wd;
+    gridEl.appendChild(el);
+  });
+  const firstDow = new Date(view.year, view.month, 1).getDay();
+  const numDays = new Date(view.year, view.month + 1, 0).getDate();
+  for (let i = 0; i < firstDow; i++) {
+    const blank = document.createElement('div');
+    blank.className = 'cal-day cal-day-empty';
+    gridEl.appendChild(blank);
+  }
+  for (let d = 1; d <= numDays; d++) {
+    const dateStr = fmtLocal(new Date(view.year, view.month, d));
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cal-day';
+    btn.textContent = String(d);
+    if (dateStr === todayStr()) btn.classList.add('cal-day-today');
+    if (dateStr === selected) btn.classList.add('cal-day-selected');
+    const outOfRange = (minDate && dateStr < minDate) || (maxDate && dateStr > maxDate);
+    if (outOfRange) {
+      btn.disabled = true;
+      btn.classList.add('cal-day-disabled');
+    } else {
+      btn.addEventListener('click', () => onSelect(dateStr));
+    }
+    gridEl.appendChild(btn);
+  }
+}
+
+function updateCalNavButtons(nextBtn, view, maxDateStr) {
+  const maxDate = parseDate(maxDateStr);
+  nextBtn.disabled = view.year > maxDate.getFullYear() ||
+    (view.year === maxDate.getFullYear() && view.month >= maxDate.getMonth());
+}
+
+function renderStartCalendar() {
+  const max = todayStr();
+  renderCalendar(startCalGrid, startCalLabel, startCalView, {
+    selected: null,
+    maxDate: max,
+    onSelect: (dateStr) => {
+      pendingStart = dateStr;
+      startCalDialog.close();
+      openEndCalendar();
+    }
+  });
+  updateCalNavButtons(startCalNext, startCalView, max);
+}
+
+function openStartCalendar() {
+  const now = parseDate(todayStr());
+  startCalView = { year: now.getFullYear(), month: now.getMonth() };
+  renderStartCalendar();
+  startCalDialog.showModal();
+}
+
+function renderEndCalendar() {
+  const max = todayStr();
+  renderCalendar(endCalGrid, endCalLabel, endCalView, {
+    selected: null,
+    minDate: pendingStart,
+    maxDate: max,
+    onSelect: (dateStr) => {
+      addCycle(pendingStart, dateStr);
+      pendingStart = null;
+      endCalDialog.close();
+    }
+  });
+  updateCalNavButtons(endCalNext, endCalView, max);
+}
+
+function openEndCalendar() {
+  const startDate = parseDate(pendingStart);
+  endCalView = { year: startDate.getFullYear(), month: startDate.getMonth() };
+  renderEndCalendar();
+  endCalDialog.showModal();
 }
 
 // --- Firestore data layer ------------------------------------------------
@@ -438,17 +541,44 @@ function render() {
   }
 }
 
-logForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const start = startInput.value;
-  const end = endInput.value;
-  if (!start) return;
-  if (end && end < start) {
-    alert('End date cannot be before start date.');
-    return;
-  }
-  addCycle(start, end);
-  logForm.reset();
+startPeriodBtn.addEventListener('click', openStartCalendar);
+startCalClose.addEventListener('click', () => startCalDialog.close());
+startCalDialog.addEventListener('click', (e) => {
+  if (e.target === startCalDialog) startCalDialog.close();
+});
+startCalPrev.addEventListener('click', () => {
+  startCalView.month--;
+  if (startCalView.month < 0) { startCalView.month = 11; startCalView.year--; }
+  renderStartCalendar();
+});
+startCalNext.addEventListener('click', () => {
+  startCalView.month++;
+  if (startCalView.month > 11) { startCalView.month = 0; startCalView.year++; }
+  renderStartCalendar();
+});
+
+function closeEndCalendar() {
+  pendingStart = null;
+  endCalDialog.close();
+}
+endCalClose.addEventListener('click', closeEndCalendar);
+endCalDialog.addEventListener('click', (e) => {
+  if (e.target === endCalDialog) closeEndCalendar();
+});
+endCalPrev.addEventListener('click', () => {
+  endCalView.month--;
+  if (endCalView.month < 0) { endCalView.month = 11; endCalView.year--; }
+  renderEndCalendar();
+});
+endCalNext.addEventListener('click', () => {
+  endCalView.month++;
+  if (endCalView.month > 11) { endCalView.month = 0; endCalView.year++; }
+  renderEndCalendar();
+});
+periodOngoingBtn.addEventListener('click', () => {
+  addCycle(pendingStart, null);
+  pendingStart = null;
+  endCalDialog.close();
 });
 
 endTodayBtn.addEventListener('click', closeOpenCycleToday);
@@ -473,9 +603,6 @@ dateOffsetReset.addEventListener('click', () => {
   updateOffsetLabel();
   render();
 });
-
-startInput.max = todayStr();
-endInput.max = todayStr();
 
 updateOffsetLabel();
 render();
